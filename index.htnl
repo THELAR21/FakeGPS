@@ -1,1 +1,130 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <title>TimeSteam Lokasi</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #0f1c2e;
+      color: white;
+      padding: 20px;
+      text-align: center;
+    }
 
+    h1 {
+      color: #66c0f4;
+    }
+
+    input[type="file"] {
+      margin-top: 20px;
+    }
+
+    .photo-preview {
+      margin-top: 20px;
+      position: relative;
+      display: inline-block;
+    }
+
+    #imagePreview {
+      max-width: 90vw;
+      border-radius: 10px;
+      border: 3px solid #66c0f4;
+    }
+
+    .timestamp-overlay {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      background: rgba(0, 0, 0, 0.6);
+      padding: 10px;
+      color: yellow;
+      font-size: 14px;
+      font-family: monospace;
+      text-align: left;
+      border-radius: 10px;
+      white-space: pre-line;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>📸 TimeSteam: Lokasi & Waktu</h1>
+  <p>Upload foto, info lokasi dan waktu akan ditampilkan otomatis.</p>
+
+  <input type="file" accept="image/*" onchange="handleUpload(event)">
+
+  <div class="photo-preview" id="previewContainer" style="display:none;">
+    <div class="timestamp-overlay" id="overlayText">Memuat lokasi...</div>
+    <img id="imagePreview" alt="Preview">
+  </div>
+
+  <script>
+    function handleUpload(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        document.getElementById("imagePreview").src = e.target.result;
+        document.getElementById("previewContainer").style.display = "inline-block";
+
+        getLocationAndAddress((data, error) => {
+          const now = new Date();
+          if (data) {
+            const output = `Tanggal : ${now.toLocaleDateString()} ${now.toLocaleTimeString()}
+Lat     : ${data.lat}°
+Lng     : ${data.lon}°
+Kecamatan : ${data.kecamatan}
+Kabupaten : ${data.kabupaten}
+Provinsi  : ${data.provinsi}`;
+            document.getElementById("overlayText").innerText = output;
+          } else {
+            document.getElementById("overlayText").innerText = "Lokasi tidak tersedia.\n" + error;
+          }
+        });
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function getLocationAndAddress(callback) {
+      if (!navigator.geolocation) {
+        callback(null, "Geolocation tidak didukung browser.");
+        return;
+      }
+
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const lat = position.coords.latitude;
+          const lon = position.coords.longitude;
+
+          fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}`)
+            .then(res => res.json())
+            .then(data => {
+              const address = data.address;
+              const kecamatan = address.suburb || address.village || address.hamlet || "N/A";
+              const kabupaten = address.city || address.county || "N/A";
+              const provinsi = address.state || "N/A";
+
+              callback({
+                lat: lat.toFixed(6),
+                lon: lon.toFixed(6),
+                kecamatan,
+                kabupaten,
+                provinsi
+              }, null);
+            })
+            .catch(err => {
+              callback(null, "Gagal ambil alamat: " + err.message);
+            });
+        },
+        (err) => {
+          callback(null, "Gagal ambil lokasi: " + err.message);
+        },
+        { enableHighAccuracy: true, timeout: 10000 }
+      );
+    }
+  </script>
+
+</body>
+</html>

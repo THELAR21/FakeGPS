@@ -2,58 +2,65 @@
 <html lang="id">
 <head>
   <meta charset="UTF-8">
-  <title>TimeSteam Lokasi</title>
+  <title>TimeSteam Kamera</title>
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      background-color: #0f1c2e;
-      color: white;
-      padding: 20px;
-      text-align: center;
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
     }
 
-    h1 {
-      color: #66c0f4;
+    html, body {
+      height: 100%;
+      width: 100%;
+      background: black;
+      overflow: hidden;
+      font-family: 'Segoe UI', sans-serif;
     }
 
     input[type="file"] {
-      margin-top: 20px;
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      z-index: 10;
+      background: rgba(0, 0, 0, 0.6);
+      color: white;
+      padding: 10px;
+      border: 2px solid white;
+      border-radius: 10px;
     }
 
     .photo-preview {
-      margin-top: 20px;
+      width: 100vw;
+      height: 100vh;
       position: relative;
-      display: inline-block;
     }
 
     #imagePreview {
-      max-width: 90vw;
-      border-radius: 10px;
-      border: 3px solid #66c0f4;
+      object-fit: cover;
+      width: 100%;
+      height: 100%;
     }
 
     .timestamp-overlay {
       position: absolute;
-      top: 10px;
-      left: 10px;
-      background: rgba(0, 0, 0, 0.6);
-      padding: 10px;
-      color: yellow;
-      font-size: 14px;
-      font-family: monospace;
-      text-align: left;
-      border-radius: 10px;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      padding: 12px 20px;
+      background: linear-gradient(to top, rgba(0, 0, 0, 0.7), transparent);
+      color: #fff;
+      font-size: 15px;
+      font-weight: 500;
+      text-shadow: 1px 1px 4px black;
+      font-family: 'Courier New', monospace;
       white-space: pre-line;
     }
   </style>
 </head>
 <body>
 
-  <h1>📸 TimeSteam: Lokasi & Waktu</h1>
-  <p>Upload foto, info lokasi dan waktu akan ditampilkan otomatis.</p>
-
   <input type="file" accept="image/*" onchange="handleUpload(event)">
-
   <div class="photo-preview" id="previewContainer" style="display:none;">
     <div class="timestamp-overlay" id="overlayText">Memuat lokasi...</div>
     <img id="imagePreview" alt="Preview">
@@ -67,20 +74,18 @@
       const reader = new FileReader();
       reader.onload = function(e) {
         document.getElementById("imagePreview").src = e.target.result;
-        document.getElementById("previewContainer").style.display = "inline-block";
+        document.getElementById("previewContainer").style.display = "block";
 
         getLocationAndAddress((data, error) => {
           const now = new Date();
           if (data) {
-            const output = `Tanggal : ${now.toLocaleDateString()} ${now.toLocaleTimeString()}
-Lat     : ${data.lat}°
-Lng     : ${data.lon}°
-Kecamatan : ${data.kecamatan}
-Kabupaten : ${data.kabupaten}
-Provinsi  : ${data.provinsi}`;
+            const output = 
+`📅 ${now.toLocaleDateString()} 🕒 ${now.toLocaleTimeString()}
+📍 Lat: ${data.lat}°, Lng: ${data.lon}°
+🏘️  ${data.kecamatan}, ${data.kabupaten}, ${data.provinsi}`;
             document.getElementById("overlayText").innerText = output;
           } else {
-            document.getElementById("overlayText").innerText = "Lokasi tidak tersedia.\n" + error;
+            document.getElementById("overlayText").innerText = "Lokasi gagal dimuat:\n" + error;
           }
         });
       };
@@ -89,7 +94,7 @@ Provinsi  : ${data.provinsi}`;
 
     function getLocationAndAddress(callback) {
       if (!navigator.geolocation) {
-        callback(null, "Geolocation tidak didukung browser.");
+        callback(null, "Geolocation tidak didukung.");
         return;
       }
 

@@ -1,135 +1,176 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
-  <meta charset="UTF-8">
-  <title>TimeSteam Kamera</title>
+  <meta charset="UTF-8" />
+  <title>Timemark Generator</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <style>
-    * {
+    html, body {
       margin: 0;
       padding: 0;
-      box-sizing: border-box;
-    }
-
-    html, body {
-      height: 100%;
+      font-family: sans-serif;
+      background: #000;
+      color: #fff;
       width: 100%;
-      background: black;
+      height: 100%;
       overflow: hidden;
-      font-family: 'Segoe UI', sans-serif;
     }
-
-    input[type="file"] {
-      position: absolute;
-      top: 20px;
-      left: 20px;
-      z-index: 10;
-      background: rgba(0, 0, 0, 0.6);
-      color: white;
-      padding: 10px;
-      border: 2px solid white;
-      border-radius: 10px;
-    }
-
-    .photo-preview {
+    .container {
+      padding: 16px;
+      box-sizing: border-box;
       width: 100vw;
       height: 100vh;
-      position: relative;
+      overflow-y: auto;
     }
-
-    #imagePreview {
-      object-fit: cover;
+    input, button, select {
+      margin: 8px 0;
+      display: block;
       width: 100%;
-      height: 100%;
+      padding: 12px;
+      font-size: 16px;
+      box-sizing: border-box;
+      color: white;
+      background-color: #222;
+      border: 1px solid #555;
     }
-
-    .timestamp-overlay {
-      position: absolute;
-      bottom: 0;
-      left: 0;
+    canvas {
+      margin-top: 20px;
       width: 100%;
-      padding: 12px 20px;
-      background: linear-gradient(to top, rgba(0, 0, 0, 0.7), transparent);
-      color: #fff;
-      font-size: 15px;
-      font-weight: 500;
-      text-shadow: 1px 1px 4px black;
-      font-family: 'Courier New', monospace;
-      white-space: pre-line;
+      border: 1px solid #ccc;
     }
   </style>
 </head>
 <body>
 
-  <input type="file" accept="image/*" onchange="handleUpload(event)">
-  <div class="photo-preview" id="previewContainer" style="display:none;">
-    <div class="timestamp-overlay" id="overlayText">Memuat lokasi...</div>
-    <img id="imagePreview" alt="Preview">
-  </div>
+<div class="container">
+  <h2>PEMBUAT KRISNA</h2>
+  <input type="file" id="imageInput" accept="image/*" />
+  <input type="time" id="timeInput" />
+  <input type="date" id="dateInput" />
+  <label for="namaPengguna">Nama Pengguna</label>
+  <select id="namaPengguna">
+    <option value="">-- Pilih Nama --</option>
+    <option value="Krisna">Krisna</option>
+    <option value="Nurfan">Nurfan</option>
+    <option value="Dika">Dika</option>
+    <option value="Bagus">Bagus</option>
+    <option value="Ade">Ade</option>
+  </select>
+  <button onclick="generateWatermarkedPhoto()">Generate Foto</button>
+  <a id="downloadLink" style="display:none;" download="timemark-photo.jpg">⬇️ Download Foto Hasil</a>
+  <canvas id="canvas"></canvas>
+</div>
 
-  <script>
-    function handleUpload(event) {
-      const file = event.target.files[0];
-      if (!file) return;
+<script>
+  let alamatBaris = ["Mengambil lokasi..."];
+  let latitude = "", longitude = "";
 
+  if (navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(
+      pos => {
+        latitude = pos.coords.latitude.toFixed(6);
+        longitude = pos.coords.longitude.toFixed(6);
+        fetch(`https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json`)
+          .then(res => res.json())
+          .then(data => {
+            const a = data.address;
+            const alamat = [
+              a.road || "",
+              a.village || a.suburb || a.town || "",
+              a.city_district || a.district || "",
+              a.city || a.county || a.regency || "",
+              a.state || "",
+              a.postcode || ""
+            ].filter(Boolean);
+            alamatBaris = alamat;
+            alamatBaris.push(`Titik: ${latitude}, ${longitude}`);
+          })
+          .catch(() => alamatBaris = ["Gagal ambil alamat."]);
+      },
+      () => alamatBaris = ["Gagal ambil lokasi GPS."]
+    );
+  }
+
+  function generateWatermarkedPhoto() {
+    const fileInput = document.getElementById("imageInput");
+    const timeInput = document.getElementById("timeInput").value;
+    const dateInput = document.getElementById("dateInput").value;
+    const namaPengguna = document.getElementById("namaPengguna").value;
+    const canvas = document.getElementById("canvas");
+    const ctx = canvas.getContext("2d");
+
+    if (fileInput.files && fileInput.files[0]) {
       const reader = new FileReader();
       reader.onload = function(e) {
-        document.getElementById("imagePreview").src = e.target.result;
-        document.getElementById("previewContainer").style.display = "block";
+        const img = new Image();
+        img.onload = function() {
+          canvas.width = img.width;
+          canvas.height = img.height;
+          ctx.drawImage(img, 0, 0);
 
-        getLocationAndAddress((data, error) => {
-          const now = new Date();
-          if (data) {
-            const output = 
-`📅 ${now.toLocaleDateString()} 🕒 ${now.toLocaleTimeString()}
-📍 Lat: ${data.lat}°, Lng: ${data.lon}°
-🏘️  ${data.kecamatan}, ${data.kabupaten}, ${data.provinsi}`;
-            document.getElementById("overlayText").innerText = output;
-          } else {
-            document.getElementById("overlayText").innerText = "Lokasi gagal dimuat:\n" + error;
-          }
-        });
+          const waktu = timeInput || new Date().toTimeString().slice(0, 5);
+          const date = dateInput ? new Date(dateInput) : new Date();
+          const hari = date.toLocaleDateString('id-ID', { weekday: 'long' });
+          const tanggal = date.toLocaleDateString('id-ID', {
+            day: 'numeric', month: 'long', year: 'numeric'
+          });
+
+          const jamFontSize = img.width * 0.05;
+          const teksFontSize = img.width * 0.025;
+          const padding = 30;
+          const lineSpacing = teksFontSize + 8;
+
+          const lines = [
+            waktu,
+            hari.charAt(0).toUpperCase() + hari.slice(1) + ", " + tanggal,
+            ...alamatBaris,
+            `Pengguna: ${namaPengguna}`
+          ];
+
+          const boxWidth = img.width * 0.92;
+          const boxHeight = (lines.length * lineSpacing) + 60;
+          const boxX = (img.width - boxWidth) / 2;
+          const boxY = img.height - boxHeight - padding;
+
+          const radius = 25;
+          ctx.beginPath();
+          ctx.moveTo(boxX + radius, boxY);
+          ctx.lineTo(boxX + boxWidth - radius, boxY);
+          ctx.quadraticCurveTo(boxX + boxWidth, boxY, boxX + boxWidth, boxY + radius);
+          ctx.lineTo(boxX + boxWidth, boxY + boxHeight - radius);
+          ctx.quadraticCurveTo(boxX + boxWidth, boxY + boxHeight, boxX + boxWidth - radius, boxY + boxHeight);
+          ctx.lineTo(boxX + radius, boxY + boxHeight);
+          ctx.quadraticCurveTo(boxX, boxY + boxHeight, boxX, boxY + boxHeight - radius);
+          ctx.lineTo(boxX, boxY + radius);
+          ctx.quadraticCurveTo(boxX, boxY, boxX + radius, boxY);
+          ctx.closePath();
+          ctx.fillStyle = "rgba(0, 0, 0, 0.65)";
+          ctx.fill();
+
+          ctx.textAlign = "left";
+          ctx.textBaseline = "top";
+          let y = boxY + 20;
+          lines.forEach((line, index) => {
+            ctx.font = `${index === 0 ? jamFontSize : teksFontSize}px Arial`;
+            ctx.fillStyle = index === 0 ? "orange" :
+                            line.startsWith("Pengguna") ? "lime" :
+                            "white";
+            ctx.fillText(line, boxX + 30, y);
+            y += index === 0 ? jamFontSize + 10 : lineSpacing;
+          });
+
+          const link = document.getElementById("downloadLink");
+          link.href = canvas.toDataURL("image/jpeg");
+          link.style.display = "inline-block";
+        };
+        img.src = e.target.result;
       };
-      reader.readAsDataURL(file);
+      reader.readAsDataURL(fileInput.files[0]);
+    } else {
+      alert("Pilih foto dulu bro!");
     }
-
-    function getLocationAndAddress(callback) {
-      if (!navigator.geolocation) {
-        callback(null, "Geolocation tidak didukung.");
-        return;
-      }
-
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const lat = position.coords.latitude;
-          const lon = position.coords.longitude;
-
-          fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}`)
-            .then(res => res.json())
-            .then(data => {
-              const address = data.address;
-              const kecamatan = address.suburb || address.village || address.hamlet || "N/A";
-              const kabupaten = address.city || address.county || "N/A";
-              const provinsi = address.state || "N/A";
-
-              callback({
-                lat: lat.toFixed(6),
-                lon: lon.toFixed(6),
-                kecamatan,
-                kabupaten,
-                provinsi
-              }, null);
-            })
-            .catch(err => {
-              callback(null, "Gagal ambil alamat: " + err.message);
-            });
-        },
-        (err) => {
-          callback(null, "Gagal ambil lokasi: " + err.message);
-        },
-        { enableHighAccuracy: true, timeout: 10000 }
-      );
-    }
-  </script>
+  }
+</script>
 
 </body>
 </html>
